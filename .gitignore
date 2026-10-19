@@ -1,0 +1,14 @@
+Debug/
+Release/
+Binaries/
+*.out
+*.obj
+*.o
+*.d
+*.map
+*.asm
+*.lst
+*.tmp
+*.log
+*.launch
+.settings/
