@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <ti/devices/msp432p4xx/driverlib/driverlib.h>
@@ -22,8 +23,8 @@ static UART uart;
 static char commandBuffer[COMMAND_BUFFER_SIZE];
 static uint32_t commandCount = 0;
 static uint32_t errorCount = 0;
-static uint8_t ledState = 0;
-static uint32_t bufferLength = 0;
+static uint32_t ledState = 0;
+static size_t bufferLength = 0;
 static bool lineOverflow = false;
 static bool previousWasCR = false;
 
@@ -40,14 +41,10 @@ static void initializeLED(void)
     ledState = 0;
 }
 
-static void setLED(uint8_t state)
+static void setLED(uint32_t state)
 {
     GPIO_setOutputLowOnPin(RGB_PORT, RGB_ALL);
-
-    if (state != 0) {
-        GPIO_setOutputHighOnPin(RGB_PORT, state & RGB_ALL);
-    }
-
+    GPIO_setOutputHighOnPin(RGB_PORT, state & RGB_ALL);
     ledState = state & RGB_ALL;
 }
 
@@ -105,21 +102,23 @@ static void showStatus(void)
     snprintf(message, sizeof(message),
              "RGB LED: %s", ledName());
     sendLine(message);
-
     sendLine("");
 }
 
 static void processCommand(char *command)
 {
     char message[96];
+    size_t length;
 
-    while (*command == ' ') {
+    while (*command == ' ' || *command == '\t') {
         command++;
     }
 
-    size_t length = strlen(command);
+    length = strlen(command);
 
-    while (length > 0 && command[length - 1] == ' ') {
+    while (length > 0 &&
+           (command[length - 1] == ' ' ||
+            command[length - 1] == '\t')) {
         command[--length] = '\0';
     }
 

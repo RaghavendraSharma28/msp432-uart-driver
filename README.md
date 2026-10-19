@@ -2,59 +2,84 @@
 
 **Embedded C · MSP432P401R · TI DriverLib · UART · GPIO**
 
-A modular embedded firmware project that provides a serial command-line interface for an MSP432P401R LaunchPad. Commands received over UART allow a user to inspect firmware status and control the onboard RGB LED.
+A modular embedded firmware project that implements a serial command-line interface for the Texas Instruments MSP432P401R LaunchPad. The application is designed to accept commands over UART, control the onboard RGB LED, and report runtime status through a serial terminal.
 
-## Features
+The project emphasizes peripheral configuration, reusable drivers, defensive input handling, and separation between hardware access and application logic.
 
-- UART communication using eUSCI_A0
-- Configurable baud-rate driver
-- Interactive command parser
-- RGB LED control through GPIO
-- Runtime command and error counters
-- Input validation and bounded command buffering
-- Backspace support and CR/LF line-ending handling
-- Modular UART driver and application code
+---
 
-## Hardware
+## Overview
 
-- Texas Instruments MSP432P401R LaunchPad
-- USB connection for the board's backchannel UART
-- Code Composer Studio and the MSP432 DriverLib
+The firmware uses the MSP432's eUSCI_A0 peripheral for UART communication and GPIO pins to control the RGB LED. A polling-based command interface processes user input and responds with status messages.
 
-## UART Configuration
+The application is designed around a small set of reusable UART functions, keeping serial communication separate from command processing.
 
-| Setting | Value |
+### Key Features
+
+- **UART driver:** Peripheral initialization, baud-rate configuration, character reception, and transmission.
+- **Interactive command interface:** Processes textual commands received through a serial terminal.
+- **GPIO control:** Controls the onboard RGB LED using individual color channels.
+- **Input validation:** Bounded command buffer, oversized-input rejection, and unknown-command handling.
+- **Terminal interaction:** Case-insensitive commands, backspace support, and CR/LF line-ending handling.
+- **Runtime diagnostics:** Tracks processed commands and invalid-command counts.
+- **Hardware abstraction:** Separates UART peripheral access from application-level command behavior.
+
+## Hardware and Software
+
+| Component | Configuration |
 |---|---|
-| Peripheral | eUSCI_A0 |
-| Pins | P1.2 / P1.3 |
-| Baud rate | 38,400 |
-| Data bits | 8 |
-| Parity | None |
-| Stop bits | 1 |
-| Transfer model | Polling |
+| Microcontroller | Texas Instruments MSP432P401R |
+| Development board | MSP432P401R LaunchPad |
+| Language | C |
+| Peripheral library | TI DriverLib |
+| Serial peripheral | eUSCI_A0 |
+| UART pins | P1.2 / P1.3 |
+| System clock | Configured for 48 MHz by the timing initialization |
+| Intended serial configuration | 38,400 baud, 8 data bits, no parity, one stop bit |
+| Development environment | Code Composer Studio |
 
-The UART configuration assumes SMCLK is running at 48 MHz. Verify the baud-rate settings against the actual board configuration before relying on them.
+The UART baud-rate configuration depends on the actual SMCLK frequency and must be verified against the board configuration.
 
-## Commands
+## Command Reference
+
+The application implements the following commands:
 
 | Command | Description |
 |---|---|
-| `HELP` | List supported commands |
-| `INFO` | Show target and firmware information |
-| `STATUS` | Show command counters and LED state |
-| `LED RED` | Set the RGB LED to red |
-| `LED GREEN` | Set the RGB LED to green |
-| `LED BLUE` | Set the RGB LED to blue |
-| `LED WHITE` | Turn on all RGB channels |
-| `LED OFF` | Turn off the RGB LED |
-| `CLEAR` | Clear a compatible terminal |
+| `HELP` | Lists supported commands |
+| `INFO` | Displays target and firmware information |
+| `STATUS` | Displays command counters and the reported LED state |
+| `LED RED` | Selects the red LED channel |
+| `LED GREEN` | Selects the green LED channel |
+| `LED BLUE` | Selects the blue LED channel |
+| `LED WHITE` | Selects all three RGB channels |
+| `LED OFF` | Clears the RGB LED outputs |
+| `CLEAR` | Sends terminal-clear escape sequences |
 
-Commands are case-insensitive. Unknown commands return an error message.
+Commands are converted to uppercase before processing. Invalid commands produce an error response, and oversized input lines are rejected.
 
-## Repository Layout
+**Hardware validation is pending.** The command list describes the implemented firmware behavior; physical LED operation and serial communication still need to be verified on the LaunchPad.
+
+## Architecture
+
+The project is organized into three main layers:
+
+### UART Driver
+
+`HAL/UART.c` and `HAL/UART.h` encapsulate UART initialization, baud-rate selection, character reception, and character transmission.
+
+### Application
+
+`src/main.c` initializes the system clock and UART, receives terminal input, parses commands, and invokes the relevant GPIO or reporting functions.
+
+### Platform Support
+
+`HAL/Timer.c`, `HAL/Timer.h`, `system_msp432p401r.c`, and `msp432p401r.cmd` provide system timing, device startup support, and memory-layout configuration.
+
+## Repository Structure
 
 ```text
-msp432-uart-command-console/
+msp432-uart-driver/
 ├── HAL/
 │   ├── UART.c
 │   ├── UART.h
@@ -62,42 +87,57 @@ msp432-uart-command-console/
 │   └── Timer.h
 ├── src/
 │   └── main.c
-├── docs/
 ├── targetConfigs/
+│   └── MSP432P401R.ccxml
 ├── msp432p401r.cmd
 ├── system_msp432p401r.c
 ├── .gitignore
 └── README.md
 ```
 
-## Build and Run
+The target configuration filename and project metadata may vary depending on the CCS workspace. This tree represents the intended source organization; generated build artifacts are excluded.
 
-1. Import the project into Code Composer Studio.
-2. Configure the project for the MSP432P401R and the appropriate TI compiler and DriverLib.
-3. Build the project and resolve any target-specific configuration issues.
-4. Connect the LaunchPad over USB and flash the firmware.
-5. Open the board's backchannel serial port using a terminal configured for 38,400 baud, 8 data bits, no parity, and one stop bit.
-6. Type `HELP` and press Enter to see the available commands.
+## Build Environment
 
-The exact CCS project settings and target configuration may need to be supplied alongside the source files.
+The project is intended for Code Composer Studio with the MSP432P401R device support package and TI DriverLib.
 
-## Verification
+To prepare a build:
 
-Hardware validation should include:
+1. Import or create a CCS project targeting the MSP432P401R.
+2. Add the application, UART driver, timer implementation, startup source, and linker command file.
+3. Configure the TI compiler and DriverLib include and library paths.
+4. Ensure the project uses the expected 48 MHz system-clock initialization.
+5. Build the project and resolve any configuration-specific errors.
 
-- Confirming that the serial prompt appears after reset.
-- Sending each supported command and checking the response.
-- Verifying each RGB LED state physically.
-- Testing lowercase input, backspace, CR/LF line endings, and unknown commands.
-- Sending an overlength line and confirming it is rejected without corrupting subsequent commands.
-- Checking communication at the configured baud rate.
+The exact CCS compiler settings and DriverLib installation path depend on the local development environment.
 
-Add actual test results and terminal screenshots after running these checks on hardware.
+## Verification Plan
 
-## Engineering Scope
+The following checks remain to be completed on physical hardware:
 
-This project explores peripheral configuration, polling-based serial communication, command parsing, GPIO control, input validation, and modular embedded C design.
+- Confirm the firmware builds successfully in CCS.
+- Flash the application to the MSP432P401R.
+- Verify the serial prompt and communication at the configured baud rate.
+- Exercise every supported command.
+- Verify the RGB LED's physical behavior for each color command.
+- Test lowercase input, backspace, CR/LF handling, invalid commands, and oversized input.
+- Confirm that the firmware recovers correctly after an invalid or oversized command.
 
-## License
+Hardware results and demonstration evidence will be added after testing is possible.
 
-Add a license after confirming that the source code and any course-provided or third-party components may be redistributed under that license.
+## Engineering Focus
+
+This project explores embedded C design, UART peripheral configuration, GPIO control, command parsing, bounded input handling, and the organization of reusable hardware drivers.
+
+The next development stage is to validate the firmware on the LaunchPad, confirm the baud-rate settings, and document the observed behavior.
+
+## Author
+
+**Raghavendra Sharma**  
+Computer Engineering · Virginia Tech
+
+Interests: Embedded Systems · Firmware Development · FPGA Design · Digital Hardware
+
+---
+
+*Status: Firmware implementation prepared; hardware validation pending.*
