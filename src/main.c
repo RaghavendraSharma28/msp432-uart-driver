@@ -102,6 +102,7 @@ static void showStatus(void)
     snprintf(message, sizeof(message),
              "RGB LED: %s", ledName());
     sendLine(message);
+
     sendLine("");
 }
 
